@@ -11,6 +11,8 @@ import com.sksamuel.hoplite.fp.NonEmptyList
 import com.sksamuel.hoplite.fp.Validated
 import com.sksamuel.hoplite.fp.ValidatedNel
 import com.sksamuel.hoplite.fp.flatMap
+import com.sksamuel.hoplite.fp.flatRecover
+import com.sksamuel.hoplite.fp.getOrElse
 import com.sksamuel.hoplite.fp.invalid
 import com.sksamuel.hoplite.fp.sequence
 import com.sksamuel.hoplite.fp.valid
@@ -22,6 +24,8 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.KType
+import kotlin.reflect.full.starProjectedType
+import kotlin.reflect.javaType
 
 class DataClassDecoder : NullHandlingDecoder<Any> {
 
@@ -103,6 +107,14 @@ class DataClassDecoder : NullHandlingDecoder<Any> {
                 context.resolvers.resolve(n, param.name ?: "unknown", kclass, context).flatMap { resolvedNode ->
                   decoder.decode(resolvedNode, param.type, context).map { decoded ->
                     Arg(param, usedName, decoded, n)
+                  }.flatRecover { originalFailure ->
+                    if (originalFailure is ConfigFailure.MissingConfigValue) {
+                      // its possible the resolved node doesn't have the information we need, but the parent node does
+                      //  e.g. a reference to an absolute env var
+                      decoder.decode(node, param.type, context).map { decoded ->
+                        Arg(param, usedName, decoded, n)
+                      }.flatRecover { originalFailure.invalid() }
+                    } else originalFailure.invalid()
                   }
                 }
               }
