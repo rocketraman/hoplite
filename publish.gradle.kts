@@ -51,6 +51,15 @@ publishing {
         password = java.lang.System.getenv("OSSRH_PASSWORD") ?: ""
       }
     }
+
+    maven {
+      name = "GitHubPackages"
+      url = uri("https://maven.pkg.github.com/rocketraman/hoplite")
+      credentials {
+        username = project.findProperty("githubRepoUser") as? String ?: ""
+        password = project.findProperty("githubRepoToken") as? String ?: ""
+      }
+    }
   }
 
   publications {
